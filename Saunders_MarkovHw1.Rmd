@@ -1,0 +1,125 @@
+---
+title: "Saunders_MarkovHW1"
+author: "Kathryn Saunders"
+date: "2026-01-19"
+output: pdf_document
+---
+
+```{r setup, include=TRUE}
+library(tidyverse) #for graphs and useful functions
+library(knitr) #to knit to pdf
+library(tinytex) #for LaTeX
+
+set.seed(987654321)
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(out.width = "60%",fig.align='center')
+```
+
+#Problem 1
+
+a.  
+
+```{r}
+lambda <- 2
+prob1 <- ppois(1, lambda)
+cat("Part b - The approximate probability is", prob1)
+
+```
+
+b.  
+
+```{r}
+n <- 100
+p <- 0.98
+
+prob_99 <- dbinom(99, size = n, prob = p)
+prob_100 <- dbinom(100, size = n, prob = p)
+prob2 <- prob_99 + prob_100
+cat("Part b - The exact probability is", prob2)
+```
+
+#Problem 3
+
+b.  
+
+```{r}
+#PDF of U
+f <- function(u) {
+  u^4 / (1 + u^6)
+}
+
+#True Value
+library(pracma)
+true_value <- integral(f, 0, 1)
+
+#Numbers
+x_vals <- seq(1, 5, by=0.1)
+N_vals <- floor(10^x_vals)
+E_vals <- numeric(length(N_vals))
+
+for (i in seq_along(N_vals)) {
+  N <- N_vals[i]
+  
+  #Samples
+  u_samples <- runif(N, 0, 1)
+  v_samples <- runif(N, 0, 1)
+  
+  #Evaluate function at sample u
+  f_u <- f(u_samples)
+  
+  #Count how many points are below the function curve
+  count_below <- sum(v_samples <= f_u)
+  E_vals[i] <- count_below / N
+}
+
+#Plotting
+data_plot <- data.frame(N = N_vals, E = E_vals)
+
+ggplot(data_plot, aes(x=N, y=E)) + geom_point() +
+  geom_hline(yintercept = true_value, color='red', linetype='dashed') +
+  scale_x_log10() + ##The log scale makes the impact of increasing the number of N samples much clearer
+  labs(title='Monte Carlo Simulation',
+       x='Number of Samples N (Log Scale)',
+       y='Estimated Value of E(N)',
+       caption='Red Dashed Line: Numerical/True Value of the Integral') +
+  theme_minimal()
+```
+
+#Problem 4
+
+b.  
+
+```{r}
+#Parameters
+N <- 1e5
+
+#Simulated arrivals
+X1 <- runif(N, min=6, max=7)
+X2 <- runif(N, min=6, max=7)
+X3 <- runif(N, min=6, max=7)
+
+#Max arrival time
+time_sim <- pmax(X1, X2, X3)
+
+#PDF
+f2 <- function(t) {
+  3 * (t-6)^2
+}
+
+# Plotting
+library(ggplot2)
+
+ggplot(data.frame(T = time_sim), aes(x = T)) +
+  geom_histogram(aes(y = ..density..), bins = 60, fill = "pink", color = "black") +
+  stat_function(fun = f2, color = "red", size = 1.5) +
+  labs(title = "Distribution of the Latest Arrival",
+       x = "Time (Between 6PM and 7PM)",
+       y = "Density",
+       caption = "Red Curve: Actual PDF") +
+  theme_minimal()
+
+
+```
