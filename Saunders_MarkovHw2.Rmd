@@ -1,0 +1,189 @@
+---
+title: "Markov HW 2"
+author: "Kathryn Saunders"
+date: "2026-01-26"
+output: pdf_document
+---
+
+
+```{r setup, include=TRUE}
+library(tidyverse) #for graphs and useful functions
+library(knitr) #to knit to pdf
+library(tinytex) #for LaTeX
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(out.width = "60%",fig.align='center')
+```
+
+# Problem 1
+
+d.
+```{r}
+set.seed(987654321)
+
+#Parameters
+gamma <- 4
+x0 <- 10
+sample_sizes <- c(100, 1000, 10000)
+
+#Samples
+samples <- function(N, gamma, x0) {
+  U <- runif(N)
+  X <- x0 * (1 - U) ^ (-1 / (gamma - 1))
+  return(X)
+}
+
+#Generate samples
+samples_list <- lapply(sample_sizes, samples, gamma=gamma, x0=x0)
+
+#Theoretical function
+density_x <- function(x) {
+  ifelse(x >= x0, (gamma - 1) * x0^(gamma - 1) * x^(-gamma), 0)
+}
+
+#For plotting
+plot_list <- list()
+
+x_vals <- seq(0, 60, length.out=1000)
+theor_density <- data.frame(
+  x = x_vals,
+  density = density_x(x_vals)
+)
+
+#Plot loop
+for (i in 1:length(sample_sizes)) {
+  N <- sample_sizes[i]
+  x_samples <- samples_list[[i]]
+  
+  #For ggplot
+  df_samples <- data.frame(x = x_samples)
+  bins <- max(10, round(sqrt(N)))
+  
+  #Histograms
+  plots <- ggplot(df_samples, aes(x=x)) +
+    geom_histogram(aes(y=..density..), bins=bins, fill="blue",
+                   alpha=0.5, color="black") +
+    geom_line(data=theor_density, aes(x=x, y=density), 
+              color="red", linetype="dashed") +
+    coord_cartesian(xlim=c(0, 60), 
+                    ylim=c(0, max(theor_density$density)*1.25)) +
+    labs(title = paste("Sample size:", N),
+         x = "x", y = "Density",
+         caption = "The blue histogram is based on the sample data,
+         the dashed red line is the theoretical distribution.") +
+    theme_minimal()
+
+  
+  print(plots)
+}
+
+```
+
+
+#Problem 2
+
+b.
+```{r}
+set.seed(123)
+library(pracma)
+
+#Sampling
+n <- 10^6
+u <- runif(n)
+
+#Root finding function
+f_root <- function(x, u_val) {
+  1 - (1 + x)*exp(-x) - u_val
+  }
+
+start_time <- Sys.time()
+
+#Uniroot to find roots
+samples_inv <- numeric(n)
+for(i in 1:n) {
+  samples_inv[i] <- uniroot(f_root, interval = c(0, 20), u_val = u[i])$root
+}
+end_time <- Sys.time()
+
+#Runtime was 24.91161
+cat("Runtime for Inverse Sampling (10^6 samples):", end_time - start_time)
+
+```
+
+
+c.
+```{r}
+set.seed(123)
+
+#Samples
+n_target <- 10^6
+samples <- numeric(n_target)
+count <- 0
+c_val <- 4 * exp(-1)
+
+start_time <- Sys.time()
+
+#Acceptance-rejection loop
+while(count < n_target) {
+  #Sample from proposal Exponential(lambda = 0.5)
+  x_prop <- rexp(1, rate = 0.5)
+  u <- runif(1)
+  
+  if(u <= (x_prop * exp(-x_prop)) / (c_val * 0.5 * exp(-x_prop/2))) {
+    count <- count + 1
+    samples[count] <- x_prop
+  }
+}
+end_time <- Sys.time()
+
+#Runtime was 1.76258
+cat("Runtime for Acceptance-Rejection:", end_time - start_time)
+
+```
+
+d. 
+```{r}
+set.seed(123)
+n <- 10^6
+
+start_time <- Sys.time()
+
+#Sum of exponentials
+e1 <- rexp(n, rate = 1)
+e2 <- rexp(n, rate = 1)
+samples_sum <- e1 + e2
+
+end_time <- Sys.time()
+
+#Runtime was 0.1363568
+cat("Runtime for Sum of Exponentials:", end_time - start_time)
+```
+e.
+```{r}
+#Histogram of sum of exponentials
+
+#For ggplot
+df <- data.frame(x = samples_sum)
+
+#Plot
+ggplot(df, aes(x = x)) +
+  geom_histogram(aes(y=..density..), bins = 80, fill = "blue",
+                 alpha=0.6, color="black") +
+  stat_function(fun = function(x) x * exp(-x), 
+                color = "red", linetype="dashed", size=1.25) +
+  labs(title = "Samples from Gamma(2,1) Computed by Summing \n
+       Two Exponential(1) Random Variables",
+       x = "x", y = "Density",
+       caption = "The blue histogram is based on the sample data,
+         the dashed red line is the theoretical distribution.") +
+  theme_minimal()
+
+```
+
+
+
+
+
+
