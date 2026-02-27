@@ -1,0 +1,180 @@
+---
+title: "Markov HW 4"
+author: "Kathryn Saunders"
+date: "2026-02-26"
+output: pdf_document
+---
+
+```{r setup, include=TRUE}
+library(tidyverse) #for graphs and useful functions
+library(knitr) #to knit to pdf
+library(tinytex) #for LaTeX
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(out.width = "60%",fig.align='center')
+```
+
+#Problem 1
+
+c.
+```{r}
+set.seed(123)
+
+#Parameters
+p <- 0.35
+q <- 0.40
+s <- 0.25
+i0 <- 10
+N <- 100000
+finals <- numeric(N)
+
+#Simulation loop
+for (t in 1:N) {
+  i <- i0
+  
+  repeat {
+    u <- runif(1)
+    
+    if (u < p) {
+      i <- i + 1
+    }
+    
+    else if (u < p + q) {
+      i <- i - 1
+    }
+    
+    else {
+      # retire
+      break
+    }
+    
+    if (i == 0) break
+  }
+  finals[t] <- i
+}
+
+#Theoretical calculations
+r <- (1/(2*p)) * (1 - (sqrt(1-4*p*q)))
+h10 <- 1 - r^10
+e10 = 10 + ((p - q) / s) * (1 - r^10)
+
+cat("The simulated expected amount of money the player will have when the game ends is", mean(finals), ". Theoretically calculating it results in a similar answer --", e10, ".")
+
+cat("The simulated probability of retiring before ruin is" , mean(finals > 0), ". Theoretically calculating it results in a similar answer --", h10, ".")
+
+
+
+```
+
+
+#Problem 2
+
+a. 
+```{r}
+#Number of machines
+machines <- 5
+
+#Create probability transition matrix with zeros
+P <- matrix(0, nrow = machines + 1, ncol = machines + 1)
+
+#Loop over current states i
+for (i in 0:machines) {
+  if (i == 0) {
+    #When all machines are broken, new machines are installed
+    P[i + 1, machines + 1] <- 1
+  } else {
+    #For states with i working machines
+    for (j in 0:i) {
+      k <- i - j
+      #Binomial probability
+      prob <- choose(i, k) * (1/10)^k * (9/10)^(i - k)
+      next_state <- j
+      #Assign probability
+      P[i + 1, next_state + 1] <- P[i + 1, next_state + 1] + prob
+    }
+  }
+}
+
+print(P)
+
+```
+
+b. 
+```{r}
+#Initialize expected times vector
+E <- rep(0, machines + 1)
+E[1] <- 0
+
+#Loop until convergence
+tolerance <- 1e-8
+max_iter <- 1000
+for (iteration in 1:max_iter) {
+  E_old <- E
+  for (i in 2:(machines + 1)) {
+    sum_prob_E <- 0
+    for (j in 1:(machines + 1)) {
+      sum_prob_E <- sum_prob_E + P[i, j] * E[j]
+    }
+    # Update E_i
+    E[i] <- 1 + sum_prob_E
+  }
+  #Check for convergence
+  if (max(abs(E - E_old)) < tolerance) {
+    break
+  }
+}
+
+#The expected time starting from state 5 is E[6]
+E_5 <- E[machines + 1]
+print(paste("The expected time until all machines fail starting from state 5 is", E_5))
+
+```
+
+c.
+```{r}
+#Initialize pi with uniform distribution
+pi <- rep(1 / (machines + 1), machines + 1)
+
+#Parameters
+tolerance <- 1e-8
+max_iter <- 10000
+
+#Iterate to find stationary distribution
+for (iteration in 1:max_iter) {
+  pi_old <- pi
+  #Update pi using the transition matrix
+  pi_new <- rep(0, machines + 1)
+  for (i in 1:(machines + 1)) {
+    sum_val <- 0
+    for (j in 1:(machines + 1)) {
+      sum_val <- sum_val + pi_old[j] * P[j, i]
+    }
+    pi_new[i] <- sum_val
+  }
+  
+  #Normalize
+  pi_new <- pi_new / sum(pi_new)
+  
+  #Check for convergence
+  if (max(abs(pi_new - pi_old)) < tolerance) {
+    pi <- pi_new
+    break
+  }
+  pi <- pi_new
+}
+
+#pi[2] is state 1
+pi_one <- pi[2] 
+print(paste("The long-run probability that only one machine is working is", pi_one))
+
+```
+
+
+
+
+
+
+
+
