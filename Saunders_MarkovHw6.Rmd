@@ -1,0 +1,154 @@
+---
+title: "Markov HW 6"
+author: "Kathryn Saunders"
+date: "2026-03-25"
+output: pdf_document
+---
+
+```{r setup, include=TRUE}
+library(tidyverse)
+library(knitr)
+library(tinytex)
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(out.width = "60%",fig.align='center')
+```
+
+# Problem 1
+
+d.
+```{r}
+library(expm)
+set.seed(111)
+
+#Define nodes
+nodes <- expand.grid(x=0:2, y=0:2)
+n <- nrow(nodes)
+adj <- matrix(0, n, n)
+
+#Build matrix
+for(i in 1:n) {
+  for(j in 1:n) {
+    dist <- abs(nodes$x[i] - nodes$x[j]) + abs(nodes$y[i] - nodes$y[j])
+    if(dist == 1)
+      adj[i,j] <- 1
+  }
+}
+
+#Transition matrix p
+p <- adj / rowSums(adj)
+
+#Stationary distribution
+pi <- rowSums(adj) / sum(adj)
+
+#Initial state X0 = 2 (nodes (2,0), (1,1), (0,2))
+#I'm not sure if I should pick one node to start with or make it uniform
+q0 <- rep(0, n)
+q0[nodes$x + nodes$y == 2] <- 1 / sum(nodes$x + nodes$y == 2)
+
+#Calculate q50
+q50 <- q0 %*% (p %^% 50)
+
+#Sum coordinates
+sum_coords <- apply(nodes, 1, sum)
+pi_i <- sapply(0:4, function(i) sum(pi[sum_coords == i]))
+q50_i <- sapply(0:4, function(i) sum(q50[sum_coords == i]))
+
+#Plot
+barplot(rbind(q50_i, pi_i), beside=TRUE, col=c("blue", "darkgreen"),
+        names.arg=0:4, legend=c("q50", "pi"),
+        main="Convergence to the Stationary Distribution",
+        xlab="Sum of coordinates (i)", ylab="Probability")
+```
+
+# Problem 3
+
+c.
+```{r}
+#Function
+f <- function(x) {x - exp(2*(x - 1))}
+
+#Split the function because it kept returning 1
+uniroot(f, lower = 0, upper = 0.5)$root
+uniroot(f, lower = 0.8, upper = 1.2)$root
+```
+# Problem 4
+
+b.
+```{r}
+set.seed(111)
+
+#Parameters
+a <- 0.49
+n_sim <- 10000
+extinct_count <- 0
+
+for(i in 1:n_sim) {
+ #Start with one particle
+   x <- 1
+  for(i in 1:200) {
+    if(x == 0) { extinct_count <- extinct_count + 1; break }
+    #Z_n = binomial(X_n, 1-a)
+    x <- 2 * rbinom(1, x, 1-a)
+  }
+}
+sim_prob <- extinct_count / n_sim
+cat("The estimated extinction probability is", sim_prob, ". \n")
+cat("The theoretical extinction probability is", a / (1 - a), ".")
+```
+
+# Problem 5
+
+b.
+```{r}
+set.seed(1111)
+
+#Parameters
+n_simulations <- 1000
+k <- 2
+lambda_A <- 1/30
+lambda_B <- 1/20
+
+#Simulate
+A_samples <- rgamma(n_simulations, shape = k, rate = lambda_A)
+B_samples <- rgamma(n_simulations, shape = k, rate = lambda_B)
+
+#Find the maximum
+max_samples <- pmax(A_samples, B_samples)
+
+#Find the expected maximum
+expected_max <- mean(max_samples)
+
+cat("The expected time until both salesperson have made at least two sales is", expected_max, "minutes.")
+```
+
+# Problem 6
+```{r}
+set.seed(1111)
+
+#Parameters
+n_sim <- 1000
+results <- numeric(n_sim)
+
+#Avalanche simulation
+for (i in 1:n_sim) {
+  total <- 0
+  current_gen <- 1
+  
+  #Branch until extinction
+  while (current_gen > 0) {
+    total <- total + current_gen
+    
+    #0 or 2 offspring
+    current_gen <- sum(sample(c(0, 2), current_gen, replace = TRUE))
+  }
+  
+  results[i] <- total
+}
+
+#Estimate probability
+cat("The estimated probability that an avalanche is size X=3 is", mean(results == 3), ".")
+```
+
