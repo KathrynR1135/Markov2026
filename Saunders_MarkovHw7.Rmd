@@ -1,0 +1,251 @@
+---
+title: "Markov HW 6"
+author: "Kathryn Saunders"
+date: "2026-04-11"
+output: pdf_document
+---
+
+```{r setup, include=TRUE}
+library(tidyverse)
+library(knitr)
+library(tinytex)
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(out.width = "60%",fig.align='center')
+```
+
+# Problem 1
+
+a.
+```{r}
+set.seed(333)
+
+#Parameters
+lambda_a <- 2
+lambda_b <- 1.5
+
+#Cutoff
+max_i <- 50
+i_vals <- 1:max_i
+
+#Calculate proability that team A wins
+prob <- sum(dpois(i_vals, lambda_a) * ppois(i_vals - 1, lambda_b))
+cat("The probability that Team A wins is", prob)
+
+```
+
+
+b.
+```{r}
+#Parameters
+lambda_a <- 2/90
+lambda_b <- 1.5/90
+
+t_vals <- seq(0, 90, by = 1)
+tie_prob <- numeric(length(t_vals))
+
+#Cutoff
+k_max <- 50
+
+for (i in seq_along(t_vals)) {
+  t <- t_vals[i]
+  tau <- 90 - t
+  
+  lambdaA_tau <- lambda_a * tau
+  lambdaB_tau <- lambda_b * tau
+  
+  k_vals <- 0:k_max
+  tie_prob[i] <- sum(dpois(k_vals, lambdaA_tau) * dpois(k_vals, lambdaB_tau))
+}
+
+# Plot
+plot(t_vals, tie_prob, type = "l", lwd = 2, col = "blue",
+     xlab = "Time t (minutes)",
+     ylab = "P(Tie | no goals before t)",
+     main = "Probability of a Tie over Time")
+```
+
+
+c.
+```{r}
+lambda_a <- 2/90
+lambda_b <- 1.5/90
+
+t_vals2 <- seq(0, 90, by = 1)
+tie_prob2 <- numeric(length(t_vals))
+
+#Cutoff
+k_max <- 50
+
+for (i in seq_along(t_vals2)) {
+  t <- t_vals2[i]
+  tau <- 90 - t
+  k_vals <- 0:k_max
+  
+  if (t < 60) {
+    #Same as part b
+    tie_prob2[i] <- sum(dpois(k_vals, lambda_a * tau) * 
+                          dpois(k_vals, lambda_b * tau))
+  } else {
+    #need B to score exactly one more than A
+    tie_prob2[i] <- sum(dpois(k_vals, lambda_a * tau) * 
+                          dpois(k_vals + 1, lambda_b * tau))
+  }
+}
+
+plot(t_vals, tie_prob2, type = "l", lwd = 2, col = "blue",
+     xlab = "Time t",
+     ylab = "P(Tie | current game state)",
+     main = "Otis' Hopes/Likelihood of Winning his Bet over Time")
+abline(v = 60, lty = 2)
+```
+
+
+# Problem 2
+
+c.
+```{r}
+set.seed(1111)
+
+#Parameters
+lambda <- 3
+t_max <- 48
+
+#Simulate arrival times
+simulate_times <- function(lambda, t_max) {
+  times <- c()
+  t <- 0
+  
+  while (TRUE) {
+    t <- t + rexp(1, rate = lambda)
+    if (t > t_max) break
+    times <- c(times, t)
+  }
+  return(times)
+}
+
+#Simulate both teams
+times_A <- simulate_times(lambda, t_max)
+times_B <- simulate_times(lambda, t_max)
+
+#Plot
+plot(NULL, xlim = c(0, t_max), ylim = c(0, 2),
+     xlab = "Time", ylab = "", yaxt = "n",
+     main = "Basket Scoring Times (Separate Processes)")
+abline(v = times_A, col = adjustcolor("red", alpha = 0.5), lwd = 2)
+abline(v = times_B, col = adjustcolor("blue", alpha = 0.5), lwd = 2)
+legend("topright", legend=c("Team A", "Team B"), col=c("red", "blue"), pch=19)
+```
+
+
+d.
+```{r}
+set.seed(1111)
+
+#Parameters
+times <- c()
+teams <- c()
+t <- 0
+
+while (TRUE) {
+  t <- t + rexp(1, rate = 2 * lambda)
+  if (t > t_max) break
+  
+  times <- c(times, t)
+  teams <- c(teams, sample(c("A", "B"), 1))
+}
+
+#Separate times
+times_A <- times[teams == "A"]
+times_B <- times[teams == "B"]
+
+#Plot
+plot(NULL, xlim = c(0, t_max), ylim = c(0, 2),
+     xlab = "Time", ylab = "", yaxt = "n",
+     main = "Basket Scoring Times (Combined Process)")
+abline(v = times_A, col = adjustcolor("red", alpha = 0.5), lwd = 2)
+abline(v = times_B, col = adjustcolor("blue", alpha = 0.5), lwd = 2)
+legend("topright", legend=c("Team A", "Team B"), col=c("red", "blue"), pch=19)
+```
+
+e.
+```{r}
+set.seed(1111)
+n_sim <- 1e5
+
+#Total baskets
+N <- rpois(n_sim, 2 * lambda * t_max)
+
+#Separate baskets
+N_A <- rbinom(n_sim, size = N, prob = 0.5)
+N_B <- N - N_A
+
+#Score difference
+D <- 2 * (N_A - N_B)
+
+#Estimates
+cat("E(D(t)) is", mean(D), ", VAR(D(t)) is", var(D), 
+    ", and P(D(t) = 0) is", mean(D == 0), ".")
+
+```
+
+# Problem 3
+
+a.
+```{r}
+#Integral
+f <- function(t) {
+  exp(-0.5 * t - t^3 / 5400)
+}
+
+#Compute integral
+result <- integrate(f, lower = 0, upper = Inf)
+result$value
+```
+
+b.
+```{r}
+0.5 * (120 + (1/2700) * (120)^3)
+
+```
+
+
+c.
+```{r}
+set.seed(11111)
+
+#Parameters
+t_max <- 120
+lambda_max <- 8.5
+
+#Sample arrival times
+n_potential <- rpois(1, lambda_max * t_max)
+potential_times <- sort(runif(n_potential, 0, t_max))
+
+#Keep times with probability lambda(t)/lambda_max
+rate_t <- function(t) 0.5 * (1 + (t/30)^2)
+keep_prob <- rate_t(potential_times) / lambda_max
+actual_reports <- potential_times[runif(n_potential) < keep_prob]
+
+#Plot
+hist(actual_reports, breaks = 0:120, main = "Flu Reports per Day",
+     xlab = "Days since September 1", col = "darkgreen", border = "black")
+
+cat("The total number of simulated reports is", length(actual_reports), ".")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
