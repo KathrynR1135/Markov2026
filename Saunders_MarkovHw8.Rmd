@@ -1,0 +1,141 @@
+---
+title: "Markov HW 8"
+author: "Kathryn Saunders"
+date: "2026-04-18"
+output: pdf_document
+---
+
+```{r setup, include=TRUE}
+library(tidyverse)
+library(knitr)
+library(tinytex)
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(out.width = "60%",fig.align='center')
+```
+
+# Problem 1
+
+a.
+```{r}
+#Rate matrix Q
+Q <- matrix(c(-1, 1, 0, 0,
+              0, -1, 1, 0,
+              0, 0, -1, 1,
+              1, 0, 0, -1),
+            nrow = 4, byrow = TRUE)
+
+#Compute eigenvalues
+eigvals <- eigen(Q)$values
+print(eigvals)
+```
+
+
+d.
+```{r}
+library(deSolve)
+
+#System of ODEs
+master_eqs <- function(t, y, params) {
+  with(as.list(y), {
+    dy1 <- y4 - y1
+    dy2 <- y1 - y2
+    dy3 <- y2 - y3
+    dy4 <- y3 - y4
+    list(c(dy1, dy2, dy3, dy4))
+  })
+}
+
+#Initial conditions
+y0 <- c(y1 = 1/3, y2 = 2/3, y3 = 0, y4 = 0)
+
+#Time sequence
+times <- seq(0, 5, by = 0.1)
+
+#Solve
+sol <- ode(y = y0, times = times, func = master_eqs, parms = NULL)
+
+#Extract y1(t)
+y1_t <- sol[, "y1"]
+
+#Plot y1(t)
+plot(times, y1_t, type = "l", col = "blue", xlab = "Time", ylab = "y1(t)", main = "Solution for y1(t)")
+
+```
+
+e.
+```{r}
+set.seed(123)
+
+simulate_chain <- function(N, times, init_probs) {
+  dt <- times[2] - times[1]
+  
+  states <- 1:4
+  chain_states <- matrix(NA, nrow = N, ncol = length(times))
+  
+  #Set initial state
+  chain_states[,1] <- sample(states, size = N, replace = TRUE, 
+                             prob = init_probs)
+  
+  for (t in 2:length(times)) {
+    for (i in 1:N) {
+      s <- chain_states[i, t-1]
+      
+      #Probability of jumping
+      if (runif(1) < dt) {
+        #Move forward
+        chain_states[i, t] <- ifelse(s == 4, 1, s + 1)
+      } else {
+        #Stay in same state
+        chain_states[i, t] <- s
+      }
+    }
+  }
+  colSums(chain_states == 1) / N
+}
+
+#Parameters
+N_values <- c(100, 1000, 10000, 100000)
+initial_probs <- c(1/3, 2/3, 0, 0)
+
+#Time points for plotting
+times <- seq(0, 5, by = 0.1)
+
+#Plot
+par(mfrow = c(2, 2))
+for (N in N_values) {
+  f_t <- simulate_chain(N, times, initial_probs)
+  #Simulated
+  plot(times, f_t, col = "darkorange", type = "l", ylim = c(0, 0.5),
+       main = paste("N =", N), xlab = "Time", ylab = "Fraction of time in state 1")
+  #Theoretical
+  lines(times, y1_t, col = "blue")
+}
+
+```
+
+# Problem 2
+c.
+```{r}
+#Q
+Q <- matrix(c(-2, 1, 1,
+              1, -1, 0,
+              1, 0, -1), nrow=3, byrow=TRUE)
+
+#Compute eigenvalues and eigenvectors
+eig <- eigen(Q)
+eig_vals <- eig$values
+eig_vecs <- eig$vectors
+
+print(eig_vals)
+print(eig_vecs)
+```
+
+
+
+
+
+
+
