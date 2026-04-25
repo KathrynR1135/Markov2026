@@ -1,0 +1,235 @@
+---
+title: "Markov HW 9"
+author: "Kathryn Saunders"
+date: "2026-04-25"
+output: pdf_document
+---
+
+```{r setup, include=TRUE}
+library(tidyverse)
+library(knitr)
+library(tinytex)
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(out.width = "60%",fig.align='center')
+```
+
+# Problem 1
+d. 
+```{r}
+set.seed(123)
+
+#Parameters
+alpha <- 1
+beta <- 1
+L <- 20
+N <- 1000
+
+#Initialize vector
+transport_times <- numeric(N)
+for (sim in 1:N) {
+  position <- 0
+  total_time <- 0
+  
+  while (position < L) {
+    #Total rate at current position
+    rate <- alpha + beta
+    
+    #Wait time for step
+    wait_time <- rexp(1, rate)
+    total_time <- total_time + wait_time
+    
+    #Determine next move
+    if (position == 0) {
+      #Only move forward
+      move_prob <- 1
+    } else {
+      move_prob <- alpha / rate
+    }
+    
+    #Decide move
+    if (runif(1) < move_prob) {
+      #Forward
+      position <- position + 1
+    } else {
+      #Backward
+      position <- position - 1
+    }
+  }
+  
+  #Record the total time
+  transport_times[sim] <- total_time
+}
+
+#Calculations
+mean_time <- mean(transport_times)
+variance_time <- var(transport_times)
+
+#Theoretical expected time
+theoretical_time <- (L * (L+1)) / (2 * alpha)
+
+cat("The simulate average time is", mean_time, ". \n")
+cat("The theoretical average time is", theoretical_time, ". \n")
+cat("The variance of the transport times is", variance_time, ".")
+
+```
+
+e.
+```{r}
+#Parameters
+L <- 20
+alpha <- 1
+beta <- 1
+n <- L + 1
+
+##Solve for m_i
+A_m <- matrix(0, n, n)
+b_m <- numeric(n)
+
+for (i in 0:L) {
+  idx <- i + 1
+  
+  #Absorbing boundary
+  if (i == L) {
+    A_m[idx, idx] <- 1
+    b_m[idx] <- 0
+    
+  } 
+  #Go to one
+  else if (i == 0) {
+    A_m[idx, idx] <- 1
+    A_m[idx, idx + 1] <- -1
+    b_m[idx] <- 1 / (alpha + beta)
+    
+  } 
+  #Interior
+  else {
+    A_m[idx, idx] <- 1
+    A_m[idx, idx + 1] <- -alpha / (alpha + beta)
+    A_m[idx, idx - 1] <- -beta / (alpha + beta)
+    b_m[idx] <- 1 / (alpha + beta)
+  }
+}
+
+m <- solve(A_m, b_m)
+
+
+##Solve for w_i
+A_w <- matrix(0, n, n)
+b_w <- numeric(n)
+
+for (i in 0:L) {
+  idx <- i + 1
+  
+  #Boundary
+  if (i == L) {
+    A_w[idx, idx] <- 1
+    b_w[idx] <- 0
+    
+  } 
+  #Boundary at 0
+  else if (i == 0) {
+    A_w[idx, idx] <- 1
+    A_w[idx, idx + 1] <- -1
+    
+    m_plus <- m[idx + 1]
+    
+    b_w[idx] <- (2 / (alpha + beta)^2) + 2 * (1 / (alpha + beta)) * m_plus
+  } 
+  #Interior
+  else {
+    A_w[idx, idx] <- 1
+    A_w[idx, idx + 1] <- -alpha / (alpha + beta)
+    A_w[idx, idx - 1] <- -beta / (alpha + beta)
+    
+    m_plus  <- m[idx + 1]
+    m_minus <- m[idx - 1]
+    
+    b_w[idx] <- (2 / (alpha + beta)^2) + 2 * (1 / (alpha + beta)) * 
+                (alpha * m_plus + beta * m_minus) / (alpha + beta)
+  }
+}
+
+w <- solve(A_w, b_w)
+
+m0 <- m[1]
+w0 <- w[1]
+
+var_t <- w0 - m0^2
+
+cat("The mean hitting time is", m0, ". \n")
+cat("The variance is", var_t, ".")
+
+```
+
+# Problem 3
+
+```{r}
+#Parameters
+lambda <- 1/15
+mu <- 1/10
+w <- lambda / mu
+
+#Compute the blocking probability for a given n
+erlangc_prob <- function(n, w) {
+  #Numerator
+  numerator <- (w^n) / factorial(n) * (1 / (1 - w / n))
+  
+  #Sum in denominator
+  sum_terms <- sum(sapply(0:(n-1), function(k) (w^k) / factorial(k)))
+  
+  #Full denominator
+  denominator <- sum_terms + numerator
+  
+  #Blocking probability
+  P_block <- numerator / denominator
+  return(P_block)
+}
+
+#Find the minimal n such that P_block < 0.02
+n <- 1
+while (TRUE) {
+  P <- erlangc_prob(n, w)
+  if (P < 0.02) {
+    break
+  }
+  n <- n + 1
+}
+
+cat("The minimum number of parking spots needed is", n, ". \n")
+```
+
+# Problem 4
+```{r}
+#Parameters
+beta <- 1
+m_values <- 1:1000
+
+#Expected hitting times
+E_tau_m <- sapply(m_values, function(m) {
+  if(m == 1) return(0)
+  k_sum <- sum(1 / (1:(m-1)))
+  k_sum / beta
+})
+
+#Deterministic approximation
+tau_m_det <- log(m_values) * (1 / beta)
+
+#Plot
+plot(m_values, E_tau_m, type='l', col='blue', lwd=2, 
+     ylab='Time to reach m particles', xlab='m', 
+     main='Expected vs. Deterministic Time')
+lines(m_values, tau_m_det, col='red', lwd=2, lty=2)
+legend("topleft", legend=c("Expected time", "Deterministic approximation"),
+       col=c("blue", "red"), lwd=2, lty=c(1,2))
+
+m <- 1000
+diff <- tau_m_det[m] - E_tau_m[m]
+diff
+```
+
+
+
+
